@@ -5,10 +5,7 @@ namespace App\Controller;
 use App\Entity\Book;
 use App\Repository\AuthorRepository;
 use App\Repository\BookRepository;
-use App\Service\VersioningService;
 use Doctrine\ORM\EntityManagerInterface;
-use JMS\Serializer\DeserializationContext;
-use JMS\Serializer\SerializationContext;
 use Knp\Component\Pager\PaginatorInterface;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,7 +15,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use JMS\Serializer\SerializerInterface;
+use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
+use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\Cache\TagAwareCacheInterface;
@@ -35,31 +33,29 @@ class BookController extends AbstractController
                              PaginatorInterface     $paginator,
                              TagAwareCacheInterface $cache): JsonResponse
     {
+        $books = $bookRepository->findAll();
+
         $offset = $request->query->getInt('offset', 1);
         $limit = $request->query->getInt('limit', 5);
 
         $idCache = 'getBooks-' . $offset . '-' . $limit;
 
-        $jsonBookList = $cache->get($idCache, function (ItemInterface $item) use ($paginator, $bookRepository, $offset, $limit, $serializer) {
+        $jsonBookList = $cache->get($idCache, function (ItemInterface $item) use ($paginator, $books, $offset, $limit, $serializer) {
             echo('L\'élément n\'est pas encore en cache !'); // displays on postman if we went through the function
-            $item->tag('booksCache');
-            $booksPaginated = $paginator->paginate($bookRepository->findAll(), $offset, $limit);
-            $context = SerializationContext::create()->setGroups(['getBooks']);
+            $item->tag('booksCache')
+                ->expiresAfter(60);
+            $booksPaginated = $paginator->paginate($books, $offset, $limit);
 
-            return $serializer->serialize($booksPaginated, 'json', $context);
+            return $serializer->serialize($booksPaginated, 'json', ['groups' => 'getBooks']);
         });
 
         return new JsonResponse($jsonBookList, Response::HTTP_OK, [], true);
     }
 
     #[Route('/api/books/{id}', name: 'app_books_details', methods: ['GET'])]
-    public function getBookDetail(Book $book, SerializerInterface $serializer, VersioningService $versioningService): JsonResponse
+    public function getBookDetail(Book $book, SerializerInterface $serializer): JsonResponse
     {
-        $version = $versioningService->getVersion();
-        $context = SerializationContext::create()->setGroups(['getBooks']);
-        $context->setVersion($version);
-
-        $jsonBook = $serializer->serialize($book, 'json', $context);
+        $jsonBook = $serializer->serialize($book, 'json', ['groups' => 'getBooks']);
 
         return new JsonResponse($jsonBook, Response::HTTP_OK, [], true);
     }
@@ -70,10 +66,9 @@ class BookController extends AbstractController
     #[Route('/api/books/{id}', name: 'app_books_delete', methods: ['DELETE'])]
     public function deleteBook(Book $book, EntityManagerInterface $entityManager, TagAwareCacheInterface $cache): JsonResponse
     {
+        $cache->invalidateTags(['booksCache']);
         $entityManager->remove($book);
         $entityManager->flush();
-
-        $cache->invalidateTags(['booksCache']);
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }
@@ -103,8 +98,7 @@ class BookController extends AbstractController
 
         $book->setAuthor($authorRepository->find($idAuthor));
 
-        $context = SerializationContext::create()->setGroups(['getBooks']);
-        $jsonBook = $serializer->serialize($book, 'json', $context);
+        $jsonBook = $serializer->serialize($book, 'json', ['groups' => 'getBooks']);
 
         $location = $urlGenerator->generate('app_books_details', ['id' => $book->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
 
@@ -123,12 +117,11 @@ class BookController extends AbstractController
                                TagAwareCacheInterface $cache
     ): JsonResponse
     {
-        $context = DeserializationContext::create();
-        $context->setAttribute('deserialization-constructor-target', $currentBook);
         $updatedBook = $serializer->deserialize(
             $request->getContent(),
-            get_class($currentBook),
-            'json'
+            Book::class,
+            'json',
+            [AbstractNormalizer::OBJECT_TO_POPULATE => $currentBook]
         );
 
         $errors = $validator->validate($updatedBook);

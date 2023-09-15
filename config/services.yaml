@@ -13,7 +13,6 @@ parameters:
             distinct: true                  # ensure distinct results, useful when ORM queries are using GROUP BY statements
             filter_field_name: filterField  # filter field query parameter name
             filter_value_name: filterValue  # filter value query parameter name
-    default_api_version: '2.0'
 
 services:
     # default configuration for services in *this* file

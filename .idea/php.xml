@@ -83,6 +83,7 @@
       <path value="$PROJECT_DIR$/vendor/knplabs/knp-paginator-bundle" />
       <path value="$PROJECT_DIR$/vendor/knplabs/knp-components" />
       <path value="$PROJECT_DIR$/vendor/twig/twig" />
+<<<<<<< HEAD
       <path value="$PROJECT_DIR$/vendor/jms/metadata" />
       <path value="$PROJECT_DIR$/vendor/willdurand/hateoas-bundle" />
       <path value="$PROJECT_DIR$/vendor/willdurand/hateoas" />
@@ -92,6 +93,8 @@
       <path value="$PROJECT_DIR$/vendor/zircote/swagger-php" />
       <path value="$PROJECT_DIR$/vendor/symfony/options-resolver" />
       <path value="$PROJECT_DIR$/vendor/nelmio/api-doc-bundle" />
+=======
+>>>>>>> parent of 089c823 (Merge pull request #6 from BenjVA/5-level-3-richardson-model)
     </include_path>
   </component>
 </project>
