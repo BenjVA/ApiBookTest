@@ -23,6 +23,7 @@ class BookFixtures extends Fixture implements DependentFixtureInterface
             $livre->setTitle('Livre ' . $i);
             $livre->setCoverText('Quatrième de couverture numéro : ' . $i);
             $livre->setAuthor($author[mt_rand(0, 9)]);
+            $livre->setComment('Commentaire' . $i);
             $manager->persist($livre);
         }
 
